@@ -6,3 +6,4 @@ auth_info_baileys/
 !.env.example
 *.log
 .DS_Store
+owners.json

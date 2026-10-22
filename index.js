@@ -1,16 +1,32 @@
 import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
-  downloadContentFromMessage
+  downloadContentFromMessage,
+  fetchLatestWaWebVersion
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import sharp from 'sharp'
 import readline from 'node:readline/promises'
 import { stdin as input, stdout as output } from 'node:process'
 import { config } from './config.js'
+import { readFile, writeFile } from 'node:fs/promises'
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 const prefix = config.prefix
+let owners = [...config.owners]
+
+async function loadOwners() {
+  const saved = JSON.parse(await readFile('./owners.json', 'utf8'))
+  if (!Array.isArray(saved)) throw new Error('owners.json debe contener una lista')
+  owners = [...new Set([...owners, ...saved]
+    .map(n => String(n).replace(/\D/g, ''))
+    .filter(n => /^\d{8,15}$/.test(n)))]
+  if (!owners.length) throw new Error('No hay propietarios configurados')
+}
+
+async function saveOwners() {
+  await writeFile('./owners.json', JSON.stringify(owners, null, 2) + '\n')
+}
 
 const menu = () => `
 ╭━━━〔 🌺 YULI BOT 🌺 〕━━━╮
@@ -40,6 +56,9 @@ const menu = () => `
 
 👑 𝐎𝐖𝐍𝐄𝐑
 │ ${prefix}owner
+│ ${prefix}owners
+│ ${prefix}setowner número
+│ ${prefix}delowner número
 │ ${prefix}estado
 
 ╰━━━〔 🌺 YULI BOT 🌺 〕━━━╯
@@ -100,14 +119,19 @@ function senderNumber(jid = '') {
 }
 
 function isOwner(sender) {
-  return config.owners.includes(senderNumber(sender))
+  return owners.includes(senderNumber(sender))
 }
 
 async function connectToWhatsApp() {
+  await loadOwners()
   const { state, saveCreds } =
     await useMultiFileAuthState('./session')
 
+  const { version } = await fetchLatestWaWebVersion({})
+  console.log('🌐 Versión de WhatsApp Web:', version.join('.'))
+
   const sock = makeWASocket({
+    version,
     auth: state,
     printQRInTerminal: false,
     markOnlineOnConnect: false,
@@ -204,14 +228,59 @@ async function connectToWhatsApp() {
           continue
         }
 
+        if (['owners', 'setowner', 'delowner'].includes(command)) {
+          if (!isOwner(sender)) {
+            await reply('🛡️ Solo los propietarios pueden usar este comando.')
+            continue
+          }
+
+          if (command === 'owners') {
+            const list = owners.map(n => '@' + n).join('\n')
+            await sock.sendMessage(jid, {
+              text: '👑 Propietarios de Yuli Bot 🌺\n' + (list || 'Lista vacía'),
+              mentions: owners.map(n => n + '@s.whatsapp.net')
+            }, { quoted: m })
+            continue
+          }
+
+          const number = argText.replace(/\D/g, '')
+          if (!/^\d{8,15}$/.test(number)) {
+            await reply('🌸 Escribe el número con código de país. Ejemplo: .setowner 50312345678')
+            continue
+          }
+
+          if (command === 'setowner') {
+            if (owners.includes(number)) {
+              await reply('🌷 Ese número ya es propietario.')
+              continue
+            }
+            owners.push(number)
+            await saveOwners()
+            await reply('🌺 Propietario agregado y guardado.')
+            continue
+          }
+
+          if (!owners.includes(number)) {
+            await reply('🌷 Ese número no está en la lista.')
+            continue
+          }
+          if (owners.length <= 1) {
+            await reply('🛡️ No se puede eliminar al último propietario.')
+            continue
+          }
+          owners = owners.filter(n => n !== number)
+          await saveOwners()
+          await reply('🌸 Propietario eliminado y guardado.')
+          continue
+        }
+
         if (command === 'owner') {
-          const owners = config.owners.length
-            ? config.owners.map(n => `@${n}`).join('\n')
-            : 'Configura tu número en config.js'
+          const ownerList = owners.length
+            ? owners.map(n => '@' + n).join('\n')
+            : 'No hay propietarios configurados'
           await sock.sendMessage(jid, {
-            text: `👑 Propietario de Yuli Bot\n${owners}`,
-            mentions: config.owners.map(n => `${n}@s.whatsapp.net`)
-          }, { quoted: m })
+            text: '👑 Propietarios de Yuli Bot 🌺\n' + ownerList,
+            mentions: owners.map(n => n + '@s.whatsapp.net')          }, { quoted: m })
           continue
         }
 

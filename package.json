@@ -10,5 +10,11 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@img/sharp-wasm32": "^0.35.5",
+    "@whiskeysockets/baileys": "^6.7.22",
+    "sharp": "^0.35.5"
+  }
 }
