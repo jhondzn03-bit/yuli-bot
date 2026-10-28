@@ -7,3 +7,19 @@ auth_info_baileys/
 *.log
 .DS_Store
 owners.json
+
+# Datos privados y configuracion local
+owners.json
+prefix.json
+customcmds.json
+subbots.json
+subbots-silence.json
+detec.json
+antibots.json
+frases-programadas.json
+welcome.json
+welcome-media/
+
+# Copias de seguridad locales
+*.backup*
+*.bak*
