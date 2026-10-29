@@ -1581,22 +1581,29 @@ if (command === 'frasecancelar') {
 
         if (!process.env.YULI_SUBBOT &&
             ['code', 'bot', 'silenciarsub', 'activarsub'].includes(command)) {
-          if (!await isOwner(sock, sender, jid)) {
+          if (command !== 'code' && !await isOwner(sock, sender, jid)) {
             await reply('🛡️ Solo los propietarios de Yuli Bot pueden usar este comando.')
             continue
           }
 
           if (command === 'code') {
-            if (group) {
-              await reply('🌸 Usa .code en el chat privado del bot para proteger tu código.')
+            const number = args[0] || ''
+            if (!/^\d{8,15}$/.test(number)) {
+              await reply('🌸 Uso: /code 503XXXXXXXX\nIncluye el código de país, solo números.')
               continue
             }
 
-            const number = args[0] || ''
-            if (!/^\d{8,15}$/.test(number)) {
-              await reply('🌸 Uso: .code 503XXXXXXXX\nIncluye el código de país, solo números.')
+            const senderJid = String(sender)
+            const senderNumber = /@(s\.whatsapp\.net|c\.us)$/.test(senderJid)
+              ? senderJid.split('@')[0].split(':')[0].replace(/\D/g, '')
+              : ''
+
+            if (!senderNumber || senderNumber !== number) {
+              await reply('🔐 Por seguridad, solicita únicamente tu propio número. Si tu cuenta aparece como identificador privado, prueba desde el chat privado de Yuli.')
               continue
             }
+
+            const privateJid = senderJid
 
             const registry = await readSubbotRegistry()
             const previous = registry[number]
@@ -1635,7 +1642,7 @@ if (command === 'frasecancelar') {
             child.on('message', async message => {
               try {
                 if (message?.type === 'yuli-pairing-code') {
-                  await sock.sendMessage(jid, {
+                  await sock.sendMessage(privateJid, {
                     text: '🌸 CÓDIGO DE VINCULACIÓN\n\n' +
                       'Número: ' + number + '\n' +
                       'Código: ' + message.code + '\n\n' +
@@ -1643,11 +1650,11 @@ if (command === 'frasecancelar') {
                       'No compartas este código con nadie.'
                   })
                 } else if (message?.type === 'yuli-pairing-error') {
-                  await sock.sendMessage(jid, {
+                  await sock.sendMessage(privateJid, {
                     text: '🌷 No se pudo generar el código: ' + message.error
                   })
                 } else if (message?.type === 'yuli-subbot-open') {
-                  await sock.sendMessage(jid, {
+                  await sock.sendMessage(privateJid, {
                     text: '🌺 El subbot ' + number + ' ya está conectado.'
                   })
                 }
@@ -1675,8 +1682,7 @@ if (command === 'frasecancelar') {
             child.unref()
             child.channel?.unref()
 
-            await reply('🌸 Solicitud iniciada para ' + number +
-              '. Si necesita vinculación, recibirás el código por este chat privado.')
+            await reply('🌸 Solicitud iniciada para tu número. Revisa el chat privado de Yuli para recibir el código.')
             continue
           }
 
