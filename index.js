@@ -654,7 +654,6 @@ async function connectToWhatsApp() {
       console.log('🌺 Yuli Bot está conectado a WhatsApp.')
       if (process.env.YULI_SUBBOT === '1' && process.send) {
         process.send({ type: 'yuli-subbot-open', number: process.env.YULI_PAIRING_NUMBER || '' })
-        process.disconnect?.()
       }
 
       if (process.env.YULI_SUBBOT !== '1' && !yuliStartupNoticeSent) {
@@ -716,7 +715,6 @@ async function connectToWhatsApp() {
 
       if (process.send) {
         process.send({ type: 'yuli-pairing-code', number, code })
-        process.disconnect?.()
       }
     } catch (error) {
       console.error('No se pudo generar el código:', error.message)
@@ -726,7 +724,6 @@ async function connectToWhatsApp() {
           number,
           error: error.message
         })
-        process.disconnect?.()
       }
     } finally {
       rl?.close()
@@ -753,8 +750,8 @@ async function connectToWhatsApp() {
 
         const sender = m.key.participant || jid
         const text = getText(m).trim()
-        const commandPrefix = text.startsWith('/') ? '/' : prefix
-        const isCommand = text.startsWith(prefix) || text.startsWith('/')
+        const commandPrefix = prefix
+        const isCommand = Boolean(prefix) && text.startsWith(prefix)
 
         const commandLine = isCommand ? text.slice(commandPrefix.length).trim() : ''
         const firstSpace = commandLine.search(/\s/)
@@ -1589,7 +1586,7 @@ if (command === 'frasecancelar') {
           if (command === 'code') {
             const number = args[0] || ''
             if (!/^\d{8,15}$/.test(number)) {
-              await reply('🌸 Uso: /code 503XXXXXXXX\nIncluye el código de país, solo números.')
+              await reply('🌸 Uso: .code 503XXXXXXXX\nIncluye el código de país, solo números.')
               continue
             }
 
